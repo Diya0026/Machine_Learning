@@ -1,0 +1,169 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.metrics import mean_squared_error, r2_score
+
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data"
+
+column_names = ['MPG', 'Cylinders', 'Displacement', 'Horsepower', 'Weight', 
+                'Acceleration', 'Model Year', 'Origin', 'Car Name']
+
+df = pd.read_csv(url, names=column_names, na_values='?', 
+                 comment='\t', sep=' ', skipinitialspace=True)
+
+df = df.dropna(subset=['Displacement', 'MPG'])
+
+X = df[['Displacement']].values
+y = df['MPG'].values
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+
+
+
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+
+y_pred_lr = lr_model.predict(X_test)
+
+mse_lr = mean_squared_error(y_test, y_pred_lr)
+r2_lr = r2_score(y_test, y_pred_lr)
+
+
+
+
+
+poly_features = PolynomialFeatures(degree=2)
+
+X_train_poly = poly_features.fit_transform(X_train)
+X_test_poly = poly_features.transform(X_test)
+
+poly_model = LinearRegression()
+
+poly_model.fit(X_train_poly, y_train)
+
+y_pred_poly = poly_model.predict(X_test_poly)
+
+mse_poly = mean_squared_error(y_test, y_pred_poly)
+r2_poly = r2_score(y_test, y_pred_poly)
+
+
+
+
+results = pd.DataFrame({
+    'Metric': ['MSE (Lower is better)', 'R2 Score (Higher is better)'],
+    'Linear Regression': [mse_lr, r2_lr],
+    'Polynomial Regression (Deg 2)': [mse_poly, r2_poly]
+})
+
+print("--- Performance Metrics Summary ---")
+print(results.to_string(index=False))
+
+
+
+if r2_poly > r2_lr:
+    print("\nBest Model: Polynomial Regression")
+else:
+    print("\nBest Model: Linear Regression")
+
+
+
+
+sort_axis = np.argsort(X_test.flatten())
+
+x_range = X_test[sort_axis]
+
+
+fig, (ax1, ax2) = plt.subplots(
+    1, 2, figsize=(16, 6), sharey=True
+)
+
+
+ax1.scatter(
+    X_test,
+    y_test,
+    color='gray',
+    alpha=0.7,
+    label='Actual Test Data'
+)
+
+ax1.plot(
+    x_range,
+    y_pred_lr[sort_axis],
+    color='red',
+    linewidth=2.5,
+    label=f'Linear Fit (R²: {r2_lr:.3f})'
+)
+
+ax1.set_title('Linear Regression Model (Underfit)')
+ax1.set_xlabel('Engine Displacement')
+ax1.set_ylabel('Miles Per Gallon (MPG)')
+
+
+ax1.text(
+    0.05,
+    0.95,
+    f"MSE = {mse_lr:.3f}\nR² Score = {r2_lr:.3f}",
+    transform=ax1.transAxes,
+    fontsize=12,
+    verticalalignment='top',
+    bbox=dict(facecolor='white', edgecolor='black')
+)
+
+ax1.legend()
+ax1.grid(True, linestyle='--', alpha=0.6)
+
+
+
+
+
+ax2.scatter(
+    X_test,
+    y_test,
+    color='gray',
+    alpha=0.7,
+    label='Actual Test Data'
+)
+
+ax2.plot(
+    x_range,
+    y_pred_poly[sort_axis],
+    color='blue',
+    linewidth=2.5,
+    label=f'Polynomial Degree 2 (R²: {r2_poly:.3f})'
+)
+
+ax2.set_title('Polynomial Regression Model (Better Fit)')
+ax2.set_xlabel('Engine Displacement')
+
+
+
+ax2.text(
+    0.05,
+    0.95,
+    f"MSE = {mse_poly:.3f}\nR² Score = {r2_poly:.3f}",
+    transform=ax2.transAxes,
+    fontsize=12,
+    verticalalignment='top',
+    bbox=dict(facecolor='white', edgecolor='black')
+)
+
+ax2.legend()
+ax2.grid(True, linestyle='--', alpha=0.6)
+
+
+
+plt.suptitle(
+    'Comparison of Regression Models on Auto MPG Dataset',
+    fontsize=14,
+    fontweight='bold'
+)
+
+plt.tight_layout()
+plt.show()
