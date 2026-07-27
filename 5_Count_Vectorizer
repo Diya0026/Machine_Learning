@@ -1,0 +1,57 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_20newsgroups
+from sklearn.feature_extraction.text import CountVectorizer
+
+# 1. Load dataset (taking 3 categories to keep execution fast during exams)
+categories = ['alt.atheism', 'comp.graphics', 'sci.space']
+data = fetch_20newsgroups(subset='train', categories=categories)
+
+# 2. Convert text documents into count vectors
+vectorizer = CountVectorizer(max_features=20, stop_words='english')
+X = vectorizer.fit_transform(data.data).toarray()
+words = vectorizer.get_feature_names_out()
+
+# Total counts per word across all documents (N_k)
+word_counts = X.sum(axis=0)
+N = word_counts.sum()
+K = len(words) # Vocabulary size
+
+# 3. Compute MLE Estimates: P(w_k) = N_k / N
+mle = word_counts / N
+
+# 4. Compute MAP Estimates with Dirichlet Priors (Laplace Smoothing):
+# P_MAP(w_k) = (N_k + alpha) / (N + K * alpha)
+alpha_small = 0.1   # Weak prior
+alpha_laplace = 1.0 # Standard Laplace prior
+alpha_strong = 10.0 # Strong prior
+
+map_small = (word_counts + alpha_small) / (N + K * alpha_small)
+map_laplace = (word_counts + alpha_laplace) / (N + K * alpha_laplace)
+map_strong = (word_counts + alpha_strong) / (N + K * alpha_strong)
+
+# 5. Display Probability Table
+df = pd.DataFrame({
+    'Word': words,
+    'MLE': mle,
+    'MAP (a=0.1)': map_small,
+    'MAP (a=1.0)': map_laplace,
+    'MAP (a=10.0)': map_strong
+})
+print("--- Estimated Probabilities ---")
+print(df.head(10))
+
+# 6. Plot Comparison (First 10 words)
+plt.plot(words[:10], mle[:10], 'o-', label='MLE (No Prior)')
+plt.plot(words[:10], map_small[:10], 's-', label='MAP (a=0.1)')
+plt.plot(words[:10], map_laplace[:10], '^-', label='MAP (a=1.0)')
+plt.plot(words[:10], map_strong[:10], 'x-', label='MAP (a=10.0)')
+
+plt.xticks(rotation=45)
+plt.xlabel("Words")
+plt.ylabel("Probability")
+plt.title("Effect of Dirichlet Priors on Multinomial Probabilities")
+plt.legend()
+plt.tight_layout()
+plt.show()
