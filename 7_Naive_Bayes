@@ -1,0 +1,88 @@
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from sklearn.metrics import accuracy_score, f1_score
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+# Load Dataset
+folder = "archive-2"
+
+X = []
+y = []
+
+for file in os.listdir(folder):
+    if file.endswith(".txt"):
+        label = file.replace(".txt", "")
+
+        with open(os.path.join(folder, file), "r", encoding="latin1") as f:
+            text = f.read()
+
+        articles = text.split("Newsgroup:")
+
+        for article in articles:
+            article = article.strip()
+            if len(article) > 50:
+                X.append(article)
+                y.append(label)
+
+# Split Dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Convert Text into Feature Vectors
+vectorizer = CountVectorizer(stop_words="english")
+
+X_train = vectorizer.fit_transform(X_train)
+X_test = vectorizer.transform(X_test)
+
+# Multinomial Naive Bayes
+mnb = MultinomialNB()
+mnb.fit(X_train, y_train)
+
+pred1 = mnb.predict(X_test)
+
+acc1 = accuracy_score(y_test, pred1)
+f1_1 = f1_score(y_test, pred1, average="weighted")
+
+print("Multinomial Naive Bayes")
+print("Accuracy :", acc1)
+print("F1 Score :", f1_1)
+
+print()
+
+# Bernoulli Naive Bayes
+bnb = BernoulliNB()
+bnb.fit(X_train, y_train)
+
+pred2 = bnb.predict(X_test)
+
+acc2 = accuracy_score(y_test, pred2)
+f1_2 = f1_score(y_test, pred2, average="weighted")
+
+print("Bernoulli Naive Bayes")
+print("Accuracy :", acc2)
+print("F1 Score :", f1_2)
+
+# Graph
+algorithms = ["Multinomial NB", "Bernoulli NB"]
+accuracy = [acc1, acc2]
+f1_scores = [f1_1, f1_2]
+
+x = np.arange(len(algorithms))
+width = 0.35
+
+plt.figure(figsize=(6,5))
+plt.bar(x - width/2, accuracy, width, label="Accuracy")
+plt.bar(x + width/2, f1_scores, width, label="F1 Score")
+
+plt.xticks(x, algorithms)
+plt.ylim(0, 1)
+plt.xlabel("Algorithms")
+plt.ylabel("Score")
+plt.title("Comparison of Naive Bayes Classifiers")
+plt.legend()
+
+plt.show()
