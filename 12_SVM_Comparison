@@ -1,0 +1,277 @@
+import time
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.datasets import fetch_openml
+from sklearn.svm import SVC
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
+)
+
+
+print("Loading Fashion MNIST dataset...")
+print("This may take a few minutes the first time...")
+
+fashion_mnist = fetch_openml(
+    "Fashion-MNIST",
+    version=1,
+    as_frame=False
+)
+
+X = fashion_mnist.data
+y = fashion_mnist.target.astype(int)
+
+print("Dataset loaded successfully!")
+print("Dataset shape:", X.shape)
+
+
+TRAIN_SIZE = 5000
+TEST_SIZE = 1000
+
+X_train = X[:TRAIN_SIZE]
+y_train = y[:TRAIN_SIZE]
+
+X_test = X[TRAIN_SIZE:TRAIN_SIZE + TEST_SIZE]
+y_test = y[TRAIN_SIZE:TRAIN_SIZE + TEST_SIZE]
+
+print("\nTraining samples:", len(X_train))
+print("Testing samples :", len(X_test))
+
+
+# Fashion-MNIST images are already represented as
+# 784 features (28 x 28 = 784).
+
+X_train = X_train.reshape(X_train.shape[0], 784)
+X_test = X_test.reshape(X_test.shape[0], 784)
+
+print("\nTraining shape:", X_train.shape)
+print("Testing shape :", X_test.shape)
+
+
+X_train = X_train.astype("float32") / 255.0
+X_test = X_test.astype("float32") / 255.0
+
+print("\nPixel values normalized from 0-255 to 0-1")
+
+def evaluate_model(model, name):
+
+    print("\n" + "=" * 60)
+    print("Training", name)
+    print("=" * 60)
+
+    start_time = time.time()
+
+    # Train
+    model.fit(X_train, y_train)
+
+    # Training time
+    training_time = time.time() - start_time
+
+    # Prediction
+    y_pred = model.predict(X_test)
+
+    # Metrics
+    accuracy = accuracy_score(y_test, y_pred)
+
+    precision = precision_score(
+        y_test,
+        y_pred,
+        average="weighted",
+        zero_division=0
+    )
+
+    recall = recall_score(
+        y_test,
+        y_pred,
+        average="weighted",
+        zero_division=0
+    )
+
+    f1 = f1_score(
+        y_test,
+        y_pred,
+        average="weighted",
+        zero_division=0
+    )
+
+    print("Accuracy :", round(accuracy, 4))
+    print("Precision:", round(precision, 4))
+    print("Recall   :", round(recall, 4))
+    print("F1-Score :", round(f1, 4))
+    print("Time     :", round(training_time, 2), "seconds")
+
+    return {
+        "Kernel": name,
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1-Score": f1,
+        "Training Time": training_time
+    }
+
+
+
+
+linear_svm = SVC(
+    kernel="linear",
+    C=1.0
+)
+
+linear_result = evaluate_model(
+    linear_svm,
+    "Linear"
+)
+
+
+
+polynomial_svm = SVC(
+    kernel="poly",
+    degree=3,
+    C=1.0,
+    gamma="scale"
+)
+
+polynomial_result = evaluate_model(
+    polynomial_svm,
+    "Polynomial"
+)
+
+
+
+rbf_svm = SVC(
+    kernel="rbf",
+    C=10.0,
+    gamma="scale"
+)
+
+rbf_result = evaluate_model(
+    rbf_svm,
+    "RBF"
+)
+
+results = pd.DataFrame([
+    linear_result,
+    polynomial_result,
+    rbf_result
+])
+
+print("\n")
+print("=" * 70)
+print("FINAL SVM COMPARISON")
+print("=" * 70)
+
+print(results.to_string(index=False))
+
+
+print("\nBest Accuracy:",
+      results.loc[results["Accuracy"].idxmax(), "Kernel"])
+
+print("Best Precision:",
+      results.loc[results["Precision"].idxmax(), "Kernel"])
+
+print("Best Recall:",
+      results.loc[results["Recall"].idxmax(), "Kernel"])
+
+print("Best F1-Score:",
+      results.loc[results["F1-Score"].idxmax(), "Kernel"])
+
+print("Fastest Training:",
+      results.loc[results["Training Time"].idxmin(), "Kernel"])
+
+
+kernels = results["Kernel"]
+
+accuracy = results["Accuracy"]
+precision = results["Precision"]
+recall = results["Recall"]
+f1 = results["F1-Score"]
+
+x = np.arange(len(kernels))
+
+width = 0.2
+
+plt.figure(figsize=(10, 6))
+
+plt.bar(
+    x - 1.5 * width,
+    accuracy,
+    width,
+    label="Accuracy"
+)
+
+plt.bar(
+    x - 0.5 * width,
+    precision,
+    width,
+    label="Precision"
+)
+
+plt.bar(
+    x + 0.5 * width,
+    recall,
+    width,
+    label="Recall"
+)
+
+plt.bar(
+    x + 1.5 * width,
+    f1,
+    width,
+    label="F1-Score"
+)
+
+plt.xlabel("SVM Kernel")
+plt.ylabel("Score")
+
+plt.title(
+    "Performance Comparison of SVM Kernels"
+)
+
+plt.xticks(x, kernels)
+
+plt.ylim(0, 1)
+
+plt.legend()
+
+plt.grid(
+    axis="y",
+    linestyle="--",
+    alpha=0.5
+)
+
+plt.tight_layout()
+
+plt.show()
+
+
+plt.figure(figsize=(8, 5))
+
+plt.bar(
+    results["Kernel"],
+    results["Training Time"],
+    color=["blue", "orange", "green"]
+)
+
+plt.xlabel("SVM Kernel")
+
+plt.ylabel(
+    "Training Time (seconds)"
+)
+
+plt.title(
+    "Training Time Comparison of SVM Kernels"
+)
+
+plt.grid(
+    axis="y",
+    linestyle="--",
+    alpha=0.5
+)
+
+plt.tight_layout()
+
+plt.show()
