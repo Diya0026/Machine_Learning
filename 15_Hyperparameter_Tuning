@@ -1,0 +1,111 @@
+import numpy as np
+import pandas as pd
+import time
+import warnings
+
+from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.exceptions import ConvergenceWarning
+
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
+
+X, y = fetch_openml(
+    "Fashion-MNIST",
+    version=1,
+    return_X_y=True,
+    as_frame=False
+)
+
+X = X.astype("float32") / 255.0
+y = y.astype(int)
+
+print("Dataset Shape:", X.shape)
+print("Classes:", len(np.unique(y)))
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+print("Training data:", X_train.shape)
+print("Testing data:", X_test.shape)
+
+experiments = [
+    (0.001, 32, 10),
+    (0.001, 128, 10),
+    (0.001, 256, 10),
+    (0.01, 128, 10),
+    (0.0001, 128, 10),
+    (0.001, 128, 5),
+    (0.001, 128, 20)
+]
+
+results = []
+
+for lr, batch, epochs in experiments:
+
+    print("\nTraining:")
+    print("Learning Rate:", lr)
+    print("Batch Size:", batch)
+    print("Epochs:", epochs)
+
+    model = MLPClassifier(
+        hidden_layer_sizes=(128,),
+        activation="relu",
+        solver="adam",
+        learning_rate_init=lr,
+        batch_size=batch,
+        max_iter=epochs,
+        random_state=42
+    )
+
+    start = time.time()
+
+    model.fit(X_train, y_train)
+
+    elapsed = time.time() - start
+
+    accuracy = accuracy_score(
+        y_test,
+        model.predict(X_test)
+    )
+
+    print("Accuracy:", accuracy)
+    print("Time:", round(elapsed, 3), "seconds")
+
+    results.append([
+        lr,
+        batch,
+        epochs,
+        accuracy,
+        elapsed
+    ])
+
+df = pd.DataFrame(
+    results,
+    columns=[
+        "Learning Rate",
+        "Batch Size",
+        "Epochs",
+        "Accuracy",
+        "Training Time"
+    ]
+)
+
+print("\nPerformance Comparison:")
+print(df.to_string(index=False))
+
+best = df.loc[df["Accuracy"].idxmax()]
+
+print("\nBest Hyperparameter Combination:")
+print("Learning Rate:", best["Learning Rate"])
+print("Batch Size:", int(best["Batch Size"]))
+print("Epochs:", int(best["Epochs"]))
+print("Best Accuracy:", best["Accuracy"])
