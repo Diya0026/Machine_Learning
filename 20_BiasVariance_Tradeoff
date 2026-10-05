@@ -1,0 +1,82 @@
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import StratifiedKFold, cross_validate
+
+# 1. Load Iris Dataset
+iris = load_iris()
+X, y = iris.data, iris.target
+
+print("Dataset Shape:", X.shape)
+print("Classes:", iris.target_names)
+
+# 2. Create Logistic Regression model
+model = Pipeline([
+    ("scaler", StandardScaler()),
+    ("classifier", LogisticRegression(max_iter=1000))
+])
+
+# 3. Bootstrapping with OOB evaluation
+rng = np.random.default_rng(42)
+n = len(X)
+results = []
+
+for i in range(30):
+    train_idx = rng.choice(n, n, replace=True)
+
+    selected = np.zeros(n, dtype=bool)
+    selected[train_idx] = True
+    oob_idx = np.where(~selected)[0]
+
+    if len(oob_idx) > 0:
+        model.fit(X[train_idx], y[train_idx])
+        pred = model.predict(X[oob_idx])
+
+        acc = accuracy_score(y[oob_idx], pred)
+        f1 = f1_score(y[oob_idx], pred, average="macro")
+
+        results.append([i + 1, acc, f1, len(oob_idx)])
+
+bootstrap = pd.DataFrame(
+    results,
+    columns=["Iteration", "Accuracy", "F1-Score", "OOB Samples"]
+)
+
+print("\nBootstrap Results:")
+print(bootstrap)
+
+bootstrap_acc = bootstrap["Accuracy"].mean()
+bootstrap_f1 = bootstrap["F1-Score"].mean()
+
+print("\nBootstrap Mean Accuracy:", bootstrap_acc)
+print("Bootstrap Mean F1-Score:", bootstrap_f1)
+
+# 4. 5-Fold Stratified Cross-Validation
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+cv_results = cross_validate(
+    model, X, y, cv=cv,
+    scoring=["accuracy", "f1_macro"]
+)
+
+cv_acc = cv_results["test_accuracy"].mean()
+cv_f1 = cv_results["test_f1_macro"].mean()
+
+print("\nCV Accuracy for each fold:", cv_results["test_accuracy"])
+print("CV F1-Score for each fold:", cv_results["test_f1_macro"])
+print("CV Mean Accuracy:", cv_acc)
+print("CV Mean F1-Score:", cv_f1)
+
+# 5. Final Comparison
+comparison = pd.DataFrame({
+    "Method": ["Bootstrapping", "5-Fold Cross-Validation"],
+    "Mean Accuracy": [bootstrap_acc, cv_acc],
+    "Mean F1-Score": [bootstrap_f1, cv_f1]
+})
+
+print("\nPerformance Comparison:")
+print(comparison)
