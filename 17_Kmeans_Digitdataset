@@ -1,0 +1,67 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# Load Digits dataset
+digits = load_digits()
+X, y = digits.data, digits.target
+
+print("Dataset shape:", X.shape)
+print("Samples:", X.shape[0])
+print("Features:", X.shape[1])
+
+# Display a sample digit
+plt.imshow(digits.images[0], cmap="gray")
+plt.title("Sample Digit")
+plt.axis("off")
+plt.show()
+
+# Standardize data
+X = StandardScaler().fit_transform(X)
+
+# K-Means for different K values
+k_values = [2, 3, 4, 5, 6, 8, 10, 12]
+inertia, silhouette = [], []
+
+for k in k_values:
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    labels = km.fit_predict(X)
+    inertia.append(km.inertia_)
+    silhouette.append(silhouette_score(X, labels))
+
+# Comparison table
+results = pd.DataFrame({
+    "K": k_values,
+    "Inertia": inertia,
+    "Silhouette Score": silhouette
+})
+print("\nResults:\n", results)
+
+# Best K
+i = np.argmax(silhouette)
+print("\nBest K:", k_values[i])
+print("Best Silhouette Score:", silhouette[i])
+
+# Plots
+plt.figure(figsize=(10, 4))
+
+plt.subplot(1, 2, 1)
+plt.plot(k_values, inertia, "o-")
+plt.xlabel("K")
+plt.ylabel("Inertia")
+plt.title("K vs Inertia")
+plt.grid()
+
+plt.subplot(1, 2, 2)
+plt.plot(k_values, silhouette, "o-")
+plt.xlabel("K")
+plt.ylabel("Silhouette Score")
+plt.title("K vs Silhouette Score")
+plt.grid()
+
+plt.tight_layout()
+plt.show()
