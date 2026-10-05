@@ -1,0 +1,128 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+# 1. Load Titanic dataset
+url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+df = pd.read_csv(url)
+
+print("First 5 rows:")
+print(df.head())
+
+print("\nDataset Shape:", df.shape)
+
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+# 2. Select features and target
+features = ["Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Embarked"]
+X = df[features]
+y = df["Survived"]
+
+print("\nFeatures:")
+print(X.head())
+
+print("\nTarget:")
+print(y.head())
+
+# 3. Preprocessing
+numeric = ["Pclass", "Age", "SibSp", "Parch", "Fare"]
+categorical = ["Sex", "Embarked"]
+
+preprocessor = ColumnTransformer([
+    ("num", SimpleImputer(strategy="median"), numeric),
+    ("cat", Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
+    ]), categorical)
+])
+
+# 4. Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+print("\nTraining Samples:", len(X_train))
+print("Testing Samples:", len(X_test))
+
+# 5. Bagging model
+bagging = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", BaggingClassifier(
+        estimator=DecisionTreeClassifier(
+            max_depth=5,
+            random_state=42
+        ),
+        n_estimators=100,
+        random_state=42
+    ))
+])
+
+# 6. AdaBoost model
+boosting = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", AdaBoostClassifier(
+        estimator=DecisionTreeClassifier(
+            max_depth=1,
+            random_state=42
+        ),
+        n_estimators=100,
+        learning_rate=0.5,
+        random_state=42
+    ))
+])
+
+# 7. Train models
+bagging.fit(X_train, y_train)
+boosting.fit(X_train, y_train)
+
+# 8. Predictions
+bag_pred = bagging.predict(X_test)
+boost_pred = boosting.predict(X_test)
+
+# 9. Evaluation function
+def metrics(y_true, y_pred):
+    return [
+        accuracy_score(y_true, y_pred),
+        precision_score(y_true, y_pred),
+        recall_score(y_true, y_pred),
+        f1_score(y_true, y_pred)
+    ]
+
+bag = metrics(y_test, bag_pred)
+boost = metrics(y_test, boost_pred)
+
+# 10. Bagging Performance
+print("\n========== BAGGING PERFORMANCE ==========")
+print("Accuracy :", bag[0])
+print("Precision:", bag[1])
+print("Recall   :", bag[2])
+print("F1-Score :", bag[3])
+
+# 11. AdaBoost Performance
+print("\n========== ADABOOST PERFORMANCE ==========")
+print("Accuracy :", boost[0])
+print("Precision:", boost[1])
+print("Recall   :", boost[2])
+print("F1-Score :", boost[3])
+
+# 12. Comparison
+comparison = pd.DataFrame({
+    "Method": ["Bagging", "AdaBoost"],
+    "Accuracy": [bag[0], boost[0]],
+    "Precision": [bag[1], boost[1]],
+    "Recall": [bag[2], boost[2]],
+    "F1-Score": [bag[3], boost[3]]
+})
+
+print("\n========== PERFORMANCE COMPARISON ==========")
+print(comparison.round(4))
